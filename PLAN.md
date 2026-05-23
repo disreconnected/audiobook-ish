@@ -97,15 +97,18 @@ The player computes a px-per-pt scale from `pages[i].width_px / pdf_width_pt` to
 - ✅ 33 unit tests + 1 opt-in integration test (set `AUDIOBOOK_ISH_TEST_PDF`).
 - **Validated on Crime and Punishment:** 13,239 sentences, 0 non-ASCII chars, pages monotonically non-decreasing across the book, all bboxes well-formed. Median sentence length 66 chars.
 
-### M2 — Per-sentence synthesis with manifest
+### M2 — Per-sentence synthesis with manifest *(done)*
 
 **Goal:** `synthesize.synthesize(sentences, output_dir, voice, speed) -> list[Sentence]` produces `sentences/sent_NNNNN.wav` per sentence and fills in `start_sec` / `end_sec`.
 
-- One `KPipeline` instance, reused across sentences.
-- For each sentence: if WAV exists, read its length to recover duration; else synthesize, write, and concat any sub-segments Kokoro returns.
-- Cumulative time tracking → `start_sec` / `end_sec`.
-- Write a partial `manifest.json` after every N sentences so the player can be opened mid-run.
-- Acceptance: kill the process mid-run, re-run, verify it picks up at the right sentence and total duration matches.
+- ✅ One `KPipeline` instance, lazily constructed (no model load if all WAVs are already on disk).
+- ✅ If a sentence's WAV exists, its duration is read from disk and Kokoro is not invoked.
+- ✅ Multi-segment outputs from Kokoro are concatenated before write.
+- ✅ Cumulative `start_sec` / `end_sec` filled in place on the Sentence list.
+- ✅ `on_progress(idx, sentence)` callback for the CLI to write partial manifest checkpoints.
+- ✅ Pipeline is injectable (`PipelineLike` Protocol) so tests use a `FakePipeline` — no real model load required for unit tests.
+- ✅ 8 unit tests + 1 opt-in real-Kokoro integration test.
+- **Validated end-to-end:** resume across two invocations on the real PDF — second run skipped the 2 already-synthesized sentences (0 Kokoro calls) and continued with cumulative timing intact. ~7.5s synthesis per sentence on CPU, matching the earlier 2.3-2.5x realtime measurement.
 
 ### M3 — Combine + render
 
