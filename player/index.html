@@ -12,14 +12,7 @@
     <div class="page-indicator">Page <span id="page-num">—</span> / <span id="page-total">—</span></div>
   </header>
 
-  <main class="layout">
-    <section class="page-view" id="page-view">
-      <div class="page-stage">
-        <img id="page-image" alt="" />
-        <div id="highlight-overlay" class="highlight-overlay"></div>
-      </div>
-    </section>
-
+  <main class="layout text-only">
     <aside class="text-view" id="text-view">
       <ol id="sentence-list" class="sentence-list" aria-label="Sentences"></ol>
     </aside>
@@ -44,6 +37,7 @@
     <audio id="audio" preload="metadata" src="audiobook.mp3"></audio>
   </footer>
 
+  <script src="manifest.js"></script>
   <script src="player.js"></script>
 </body>
 </html>

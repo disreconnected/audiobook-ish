@@ -121,14 +121,17 @@ The player computes a px-per-pt scale from `pages[i].width_px / pdf_width_pt` to
 - ✅ 17 new tests (8 render, 9 combine, real-ffmpeg integration tests skipped automatically when ffmpeg is absent).
 - **Validated on Crime and Punishment:** 5 pages rendered at 150 DPI in 0.15s (672x1008 px, ~200 KB avg), 2-sentence MP3 produced in 0.15s (224 KB for 14.2s of audio at 128kbps).
 
-### M4 — Player v1 (text-only sync)
+### M4 — Player v1 (text-only sync) *(done)*
 
 **Goal:** `player.html` loads `manifest.json` + `audiobook.mp3`, shows scrollable sentence list, highlights current sentence, auto-scrolls, lets user click a sentence to seek.
 
-- No PDF page view yet.
-- Bottom bar: play/pause, scrubber, time, current page indicator (text only).
-- Keyboard: space, ←/→ (5s skip), j/k (prev/next sentence), `,` / `.` (slower/faster).
-- Acceptance: works offline in Chrome and Firefox, no console errors.
+- ✅ Text-only layout (page panel removed for this milestone).
+- ✅ Bottom bar: play/pause, scrubber, time, current page indicator.
+- ✅ Keyboard: space, ←/→ (5s skip), j/k (prev/next sentence), `,` / `.` (slower/faster).
+- ✅ Binary-search sentence sync for efficient long-book playback.
+- ✅ `manifest.js` fallback (`window.AUDIOBOOK_ISH_MANIFEST`) so playback works from `file://` without fetch/CORS issues; still supports `manifest.json` fetch when served over HTTP.
+- ✅ Added `bundle_player(output_dir)` helper and `audiobook-ish bundle-player <out>` CLI command to copy `player.html`, `player.css`, `player.js`, and `assets/` into generated output folders.
+- ✅ Smoke-tested end-to-end on a real PDF subset: generated MP3 + manifest + bundled player files in `examples/m4_smoke`.
 
 ### M5 — Player v2 (page + bbox highlight)
 

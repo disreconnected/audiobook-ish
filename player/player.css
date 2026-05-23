@@ -38,49 +38,13 @@ body {
 .page-indicator { color: var(--muted); }
 
 .layout {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  display: block;
   min-height: 0;
 }
 
-.page-view {
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  overflow: auto;
-}
-
-.page-stage {
-  position: relative;
-  display: inline-block;
-  max-width: 100%;
-  max-height: 100%;
-}
-
-#page-image {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-  background: #fff;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-}
-
-.highlight-overlay {
-  position: absolute;
-  pointer-events: none;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-radius: 2px;
-  transition: top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear, opacity 120ms;
-  opacity: 0;
-}
-
 .text-view {
-  border-left: 1px solid var(--border);
   overflow: auto;
-  padding: 16px 20px;
+  padding: 20px 24px;
   background: var(--panel);
 }
 

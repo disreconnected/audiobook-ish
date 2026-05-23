@@ -14,7 +14,10 @@ See PLAN.md M6.
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import sys
+
+from audiobook_ish.player_bundle import bundle_player
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,11 +35,18 @@ def main(argv: list[str] | None = None) -> int:
     build.add_argument("--dpi", type=int, default=150)
     build.add_argument("--bitrate", default="128k")
 
+    bundle = sub.add_parser("bundle-player", help="Copy static player assets into an output folder")
+    bundle.add_argument("out")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "build":
         print("audiobook-ish: CLI scaffolded; pipeline not implemented yet.")
         print("See PLAN.md for the milestone roadmap.")
+        return 0
+    if args.cmd == "bundle-player":
+        bundle_player(Path(args.out))
+        print(f"Player bundled in: {Path(args.out).resolve()}")
         return 0
 
     parser.print_help()

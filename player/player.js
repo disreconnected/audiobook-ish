@@ -1,18 +1,8 @@
-/*
- * audiobook-ish player — barebones.
- *
- * Loads manifest.json + audiobook.mp3 (and pages/*.png referenced inside the
- * manifest). Highlights the current sentence on the text panel and overlays a
- * yellow rectangle on the rendered PDF page.
- *
- * Wire-up details to flesh out in M4/M5; this stub gets the structure right.
- */
+/* audiobook-ish player (M4): text-only sync */
 
 (async () => {
   const audio = document.getElementById("audio");
   const list = document.getElementById("sentence-list");
-  const pageImage = document.getElementById("page-image");
-  const overlay = document.getElementById("highlight-overlay");
   const pageNum = document.getElementById("page-num");
   const pageTotal = document.getElementById("page-total");
   const titleEl = document.getElementById("title");
@@ -26,25 +16,39 @@
 
   let manifest = null;
   let currentIdx = -1;
-  let pageById = new Map();
+  const timeline = [];
 
   try {
-    manifest = await fetch("manifest.json", { cache: "no-store" }).then((r) => {
-      if (!r.ok) throw new Error(`manifest.json: ${r.status}`);
-      return r.json();
-    });
+    manifest = await loadManifest();
   } catch (err) {
-    titleEl.textContent = "Could not load manifest.json — open this player from inside a generated example folder.";
+    titleEl.textContent = "Could not load manifest data (manifest.js or manifest.json).";
+    pageNum.textContent = "—";
+    pageTotal.textContent = "—";
     console.error(err);
     return;
   }
 
-  titleEl.textContent = manifest.source_pdf || "audiobook-ish";
-  pageTotal.textContent = String(manifest.page_count ?? "—");
-  pageById = new Map((manifest.pages || []).map((p) => [p.number, p]));
+  if (!Array.isArray(manifest.sentences) || manifest.sentences.length === 0) {
+    titleEl.textContent = "Manifest loaded, but no sentences were found.";
+    pageNum.textContent = "—";
+    pageTotal.textContent = String(manifest.page_count ?? "—");
+    return;
+  }
 
-  // Render the sentence list.
+  titleEl.textContent = manifest.source_pdf || "audiobook-ish";
+  const inferredTotalPages = manifest.page_count
+    || Math.max(...manifest.sentences.map((s) => Number(s.page) || 0), 0)
+    || "—";
+  pageTotal.textContent = String(inferredTotalPages);
+
+  // Build sentence list + lookup timeline.
   for (const s of manifest.sentences) {
+    const start = Number(s.start_sec);
+    const end = Number(s.end_sec);
+    if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+      timeline.push({ id: s.id, start, end });
+    }
+
     const li = document.createElement("li");
     li.textContent = s.text;
     li.dataset.id = String(s.id);
@@ -56,6 +60,7 @@
     });
     list.appendChild(li);
   }
+  timeline.sort((a, b) => a.start - b.start);
 
   audio.addEventListener("loadedmetadata", () => {
     scrubber.max = String(audio.duration || 0);
@@ -90,16 +95,19 @@
         break;
       case "ArrowLeft": audio.currentTime = Math.max(0, audio.currentTime - 5); break;
       case "ArrowRight": audio.currentTime = Math.min(audio.duration, audio.currentTime + 5); break;
+      case ",":
+        setRate(audio.playbackRate - 0.1);
+        break;
+      case ".":
+        setRate(audio.playbackRate + 0.1);
+        break;
       case "j": jumpRelative(-1); break;
       case "k": jumpRelative(+1); break;
     }
   });
 
   function syncSentence(t) {
-    // TODO(M4): binary search instead of linear scan.
-    const idx = manifest.sentences.findIndex(
-      (s) => typeof s.start_sec === "number" && typeof s.end_sec === "number" && t >= s.start_sec && t < s.end_sec,
-    );
+    const idx = indexForTime(t);
     if (idx === -1 || idx === currentIdx) return;
     setActive(idx);
   }
@@ -113,38 +121,60 @@
     li.scrollIntoView({ block: "nearest", behavior: "smooth" });
     const s = manifest.sentences[idx];
     pageNum.textContent = String(s.page);
-    showPage(s);
-  }
-
-  function showPage(s) {
-    const page = pageById.get(s.page);
-    if (!page) return;
-    if (!pageImage.src.endsWith(page.image)) pageImage.src = page.image;
-    pageImage.onload = () => positionOverlay(s, page);
-    if (pageImage.complete) positionOverlay(s, page);
-  }
-
-  function positionOverlay(s, page) {
-    if (!Array.isArray(s.bbox) || s.bbox.length !== 4) {
-      overlay.style.opacity = "0";
-      return;
-    }
-    const rect = pageImage.getBoundingClientRect();
-    const stage = pageImage.parentElement.getBoundingClientRect();
-    const sx = pageImage.clientWidth / page.pdf_width_pt;
-    const sy = pageImage.clientHeight / page.pdf_height_pt;
-    const [x0, y0, x1, y1] = s.bbox;
-    overlay.style.left = `${(rect.left - stage.left) + x0 * sx}px`;
-    overlay.style.top = `${(rect.top - stage.top) + y0 * sy}px`;
-    overlay.style.width = `${(x1 - x0) * sx}px`;
-    overlay.style.height = `${(y1 - y0) * sy}px`;
-    overlay.style.opacity = "1";
   }
 
   function jumpRelative(delta) {
     const next = Math.max(0, Math.min(manifest.sentences.length - 1, currentIdx + delta));
     const s = manifest.sentences[next];
     if (s && typeof s.start_sec === "number") audio.currentTime = s.start_sec;
+  }
+
+  function setRate(nextRate) {
+    const rate = Math.min(3.0, Math.max(0.5, Math.round(nextRate * 100) / 100));
+    audio.playbackRate = rate;
+    syncRateSelect(rate);
+  }
+
+  function syncRateSelect(rate) {
+    const target = Number(rate).toFixed(2).replace(/\.00$/, "");
+    let option = [...speed.options].find((o) => o.value === target);
+    if (!option) {
+      option = document.createElement("option");
+      option.value = target;
+      option.textContent = `${target}x`;
+      speed.appendChild(option);
+    }
+    speed.value = target;
+  }
+
+  function indexForTime(t) {
+    if (timeline.length === 0) return -1;
+    let lo = 0;
+    let hi = timeline.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const seg = timeline[mid];
+      if (t < seg.start) {
+        hi = mid - 1;
+      } else if (t >= seg.end) {
+        lo = mid + 1;
+      } else {
+        return seg.id;
+      }
+    }
+    if (t >= timeline[timeline.length - 1].end) {
+      return timeline[timeline.length - 1].id;
+    }
+    return -1;
+  }
+
+  async function loadManifest() {
+    if (window.AUDIOBOOK_ISH_MANIFEST) {
+      return window.AUDIOBOOK_ISH_MANIFEST;
+    }
+    const response = await fetch("manifest.json", { cache: "no-store" });
+    if (!response.ok) throw new Error(`manifest.json: ${response.status}`);
+    return response.json();
   }
 
   function fmt(t) {
