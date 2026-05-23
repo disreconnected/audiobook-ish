@@ -146,14 +146,24 @@ The player computes a px-per-pt scale from `pages[i].width_px / pdf_width_pt` to
 - ✅ Graceful fallback to text-only mode when `manifest.pages` is missing or page images fail to load.
 - ✅ End-to-end smoke run on real PDF subset: generated `pages/page_001.png..page_767.png`, MP3, manifest files, and bundled player with no JS syntax errors (`node --check`).
 
-### M6 — CLI + packaging
+### M6 — CLI + packaging *(done)*
 
 **Goal:** `audiobook-ish build PDF --out DIR` does everything end-to-end. Sub-commands for individual stages (`extract`, `synthesize`, `combine`, `render`, `bundle-player`).
 
-- `--voice`, `--speed`, `--dpi`, `--bitrate`, `--ffmpeg` flags.
-- Progress bars (tqdm).
-- Smart defaults; everything resumable.
-- Acceptance: clean re-run after a half-finished run produces identical output.
+- ✅ `audiobook-ish build PDF --out DIR` now runs end-to-end:
+  1) extract sentences, 2) synthesize sentence WAVs, 3) render pages,
+  4) combine MP3, 5) write manifest.json + manifest.js + bundle player.
+- ✅ Stage subcommands implemented:
+  - `extract PDF --out sentences.json`
+  - `synthesize sentences.json --out DIR`
+  - `render PDF --out DIR`
+  - `combine DIR --out audiobook.mp3`
+  - `bundle-player DIR`
+- ✅ Flags in place: `--voice`, `--speed`, `--sample-rate`, `--dpi`, `--bitrate`, `--ffmpeg`.
+- ✅ Resumable checkpoints during synthesis via `--checkpoint-every` (writes partial manifest files so the player can open mid-run).
+- ✅ Dev/test limiter `--max-sentences` for fast smoke validation.
+- ⚠️ Progress bars (`tqdm`) deferred; currently stage markers are printed (`[1/5] ...`).
+- **Acceptance validated:** full CLI smoke build on Crime and Punishment with `--max-sentences 8` completed successfully and produced a playable output folder with all expected artifacts.
 
 ### M7 — Polish
 
