@@ -110,13 +110,16 @@ The player computes a px-per-pt scale from `pages[i].width_px / pdf_width_pt` to
 - ✅ 8 unit tests + 1 opt-in real-Kokoro integration test.
 - **Validated end-to-end:** resume across two invocations on the real PDF — second run skipped the 2 already-synthesized sentences (0 Kokoro calls) and continued with cumulative timing intact. ~7.5s synthesis per sentence on CPU, matching the earlier 2.3-2.5x realtime measurement.
 
-### M3 — Combine + render
+### M3 — Combine + render *(done)*
 
 **Goal:** Produce `audiobook.mp3` and `pages/page_NNN.png`.
 
-- `combine.combine(sentences_dir, output_mp3, ffmpeg_path)` — concat WAVs with `ffmpeg -f concat`, then encode to 128k MP3 in one shot.
-- `render.render_pages(pdf_path, output_dir, dpi=150)` — write `page_001.png` etc., record pixel dims back to manifest.
-- Acceptance: mp3 plays end-to-end, page images render at expected DPI.
+- ✅ `combine.combine(sentences_dir, output_mp3, bitrate)` uses `ffmpeg -f concat -safe 0 -i list.txt -c:a libmp3lame -b:a 128k`. Concat-list paths use forward slashes so they parse cleanly inside single-quoted directives on Windows.
+- ✅ Gap detection: missing sentence ids in the WAV directory raise `AudiobookIshError` with a sample of the missing ids.
+- ✅ `render.render_pages(pdf_path, output_dir, dpi=150)` writes `pages/page_NNN.png` (auto-padded to 4 digits for >999-page books) and returns a `list[PageInfo]` with pixel + PDF-point dims.
+- ✅ Both are resumable: existing PNGs are kept (pixel dims read via `pymupdf.Pixmap`); `combine` is one-shot so resuming means "no-op if MP3 exists" via caller logic.
+- ✅ 17 new tests (8 render, 9 combine, real-ffmpeg integration tests skipped automatically when ffmpeg is absent).
+- **Validated on Crime and Punishment:** 5 pages rendered at 150 DPI in 0.15s (672x1008 px, ~200 KB avg), 2-sentence MP3 produced in 0.15s (224 KB for 14.2s of audio at 128kbps).
 
 ### M4 — Player v1 (text-only sync)
 
