@@ -85,16 +85,17 @@ The player computes a px-per-pt scale from `pages[i].width_px / pdf_width_pt` to
 - Stub modules in `audiobook_ish/` with docstrings and TODOs
 - Stub player files
 
-### M1 — Sentence extraction with page tracking
+### M1 — Sentence extraction with page tracking *(done)*
 
 **Goal:** `extract.extract_sentences(pdf_path) -> list[Sentence]` works on a small fixture PDF and the real Crime & Punishment PDF.
 
-- Use `PyMuPDF`'s `page.get_text("dict")` to get per-block / per-span text with bboxes.
-- Rejoin hyphenated line breaks within a page.
-- Strip boilerplate lines (Planet eBook headers/footers, page numbers, glyph markers).
-- Apply `clean_for_tts` ruleset (from `legacy/generate_audiobook.py`).
-- Split into sentences with `re.split(r'(?<=[.!?])\s+', ...)`, but only within a single page span — multi-page sentences get bbox = union of their parts on the last page they end on (good enough for v1).
-- Acceptance: on the fixture PDF, sentence count and page assignments match a hand-checked expected file.
+- ✅ `PyMuPDF`'s `page.get_text("dict")` for per-line text + bboxes.
+- ✅ Hyphenated line breaks rejoined (both cross-line and in-line `word- word` artifacts).
+- ✅ Boilerplate stripping: empty lines, pure-digit page numbers, PUA glyphs, Planet eBook headers.
+- ✅ `clean_for_tts` ruleset: smart quotes / em dash / ellipsis / accents / ligatures / zero-width / PUA / collapse whitespace → ASCII-only.
+- ✅ Sentence split on `(?<=[.!?])\s+`; each sentence anchored to its *last* overlapping line's page, bbox = union of overlapping lines on that page.
+- ✅ 33 unit tests + 1 opt-in integration test (set `AUDIOBOOK_ISH_TEST_PDF`).
+- **Validated on Crime and Punishment:** 13,239 sentences, 0 non-ASCII chars, pages monotonically non-decreasing across the book, all bboxes well-formed. Median sentence length 66 chars.
 
 ### M2 — Per-sentence synthesis with manifest
 
