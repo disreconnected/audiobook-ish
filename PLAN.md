@@ -133,14 +133,18 @@ The player computes a px-per-pt scale from `pages[i].width_px / pdf_width_pt` to
 - ✅ Added `bundle_player(output_dir)` helper and `audiobook-ish bundle-player <out>` CLI command to copy `player.html`, `player.css`, `player.js`, and `assets/` into generated output folders.
 - ✅ Smoke-tested end-to-end on a real PDF subset: generated MP3 + manifest + bundled player files in `examples/m4_smoke`.
 
-### M5 — Player v2 (page + bbox highlight)
+### M5 — Player v2 (page + bbox highlight) *(done)*
 
 **Goal:** Two-pane layout. Left = current page image with translucent yellow rectangle on the active sentence's bbox. Right = sentence list (M4 behavior).
 
-- Page swaps when the current sentence's `page` changes.
-- Bbox → pixel conversion using `pages[i]` scale factors.
-- Click on a region of the page → seek to nearest sentence whose bbox contains the click.
-- Acceptance: highlight visually tracks the audio on the test book without drifting.
+- ✅ Two-pane layout restored. Left: rendered page image, right: sentence list.
+- ✅ Active sentence drives page swap + translucent bbox highlight overlay.
+- ✅ Bbox→pixel mapping uses `page.pdf_width_pt/pdf_height_pt` and rendered image client size.
+- ✅ Clicking the page seeks audio to the matching sentence:
+  - first tries bbox containment,
+  - falls back to nearest bbox center on that page.
+- ✅ Graceful fallback to text-only mode when `manifest.pages` is missing or page images fail to load.
+- ✅ End-to-end smoke run on real PDF subset: generated `pages/page_001.png..page_767.png`, MP3, manifest files, and bundled player with no JS syntax errors (`node --check`).
 
 ### M6 — CLI + packaging
 

@@ -1,8 +1,14 @@
-/* audiobook-ish player (M4): text-only sync */
+/* audiobook-ish player (M5): page + bbox sync */
 
 (async () => {
   const audio = document.getElementById("audio");
   const list = document.getElementById("sentence-list");
+  const layout = document.getElementById("layout");
+  const pageView = document.getElementById("page-view");
+  const pageStage = document.getElementById("page-stage");
+  const pageImage = document.getElementById("page-image");
+  const pageEmpty = document.getElementById("page-empty");
+  const overlay = document.getElementById("highlight-overlay");
   const pageNum = document.getElementById("page-num");
   const pageTotal = document.getElementById("page-total");
   const titleEl = document.getElementById("title");
@@ -16,7 +22,10 @@
 
   let manifest = null;
   let currentIdx = -1;
+  let currentPage = null;
   const timeline = [];
+  const sentencesByPage = new Map();
+  const pageByNumber = new Map();
 
   try {
     manifest = await loadManifest();
@@ -40,6 +49,11 @@
     || Math.max(...manifest.sentences.map((s) => Number(s.page) || 0), 0)
     || "—";
   pageTotal.textContent = String(inferredTotalPages);
+  if (Array.isArray(manifest.pages)) {
+    for (const page of manifest.pages) {
+      pageByNumber.set(Number(page.number), page);
+    }
+  }
 
   // Build sentence list + lookup timeline.
   for (const s of manifest.sentences) {
@@ -47,6 +61,11 @@
     const end = Number(s.end_sec);
     if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
       timeline.push({ id: s.id, start, end });
+    }
+    const page = Number(s.page);
+    if (Number.isFinite(page)) {
+      if (!sentencesByPage.has(page)) sentencesByPage.set(page, []);
+      sentencesByPage.get(page).push(s.id);
     }
 
     const li = document.createElement("li");
@@ -61,6 +80,7 @@
     list.appendChild(li);
   }
   timeline.sort((a, b) => a.start - b.start);
+  pageView.addEventListener("click", onPageClick);
 
   audio.addEventListener("loadedmetadata", () => {
     scrubber.max = String(audio.duration || 0);
@@ -105,6 +125,15 @@
       case "k": jumpRelative(+1); break;
     }
   });
+  window.addEventListener("resize", () => {
+    if (currentIdx >= 0) {
+      syncPageVisuals(manifest.sentences[currentIdx]);
+    }
+  });
+
+  setRate(Number(speed.value) || 1);
+  const initialIdx = indexForTime(0);
+  if (initialIdx >= 0) setActive(initialIdx);
 
   function syncSentence(t) {
     const idx = indexForTime(t);
@@ -121,6 +150,7 @@
     li.scrollIntoView({ block: "nearest", behavior: "smooth" });
     const s = manifest.sentences[idx];
     pageNum.textContent = String(s.page);
+    syncPageVisuals(s);
   }
 
   function jumpRelative(delta) {
@@ -166,6 +196,117 @@
       return timeline[timeline.length - 1].id;
     }
     return -1;
+  }
+
+  function syncPageVisuals(sentence) {
+    const page = pageByNumber.get(Number(sentence.page));
+    if (!page || !page.image) {
+      layout.classList.add("text-only");
+      pageEmpty.classList.remove("hidden");
+      pageStage.classList.add("hidden");
+      return;
+    }
+    layout.classList.remove("text-only");
+    pageEmpty.classList.add("hidden");
+    pageStage.classList.remove("hidden");
+
+    const updateOverlay = () => placeOverlay(sentence, page);
+
+    if (currentPage !== page.number || !pageImage.getAttribute("src")) {
+      currentPage = page.number;
+      pageImage.onerror = () => {
+        layout.classList.add("text-only");
+        pageEmpty.classList.remove("hidden");
+        pageStage.classList.add("hidden");
+        overlay.style.opacity = "0";
+      };
+      pageImage.onload = () => updateOverlay();
+      pageImage.setAttribute("src", page.image);
+      if (pageImage.complete) updateOverlay();
+    } else {
+      updateOverlay();
+    }
+  }
+
+  function placeOverlay(sentence, page) {
+    if (!Array.isArray(sentence.bbox) || sentence.bbox.length !== 4) {
+      overlay.style.opacity = "0";
+      return;
+    }
+    if (!pageImage.naturalWidth || !pageImage.naturalHeight) {
+      overlay.style.opacity = "0";
+      return;
+    }
+    const [x0, y0, x1, y1] = sentence.bbox.map((n) => Number(n));
+    if (![x0, y0, x1, y1].every(Number.isFinite) || x1 <= x0 || y1 <= y0) {
+      overlay.style.opacity = "0";
+      return;
+    }
+
+    const sx = pageImage.clientWidth / Number(page.pdf_width_pt || 1);
+    const sy = pageImage.clientHeight / Number(page.pdf_height_pt || 1);
+    overlay.style.left = `${x0 * sx}px`;
+    overlay.style.top = `${y0 * sy}px`;
+    overlay.style.width = `${Math.max(1, (x1 - x0) * sx)}px`;
+    overlay.style.height = `${Math.max(1, (y1 - y0) * sy)}px`;
+    overlay.style.opacity = "1";
+  }
+
+  function onPageClick(event) {
+    if (!pageImage.getAttribute("src") || currentPage == null) return;
+    const page = pageByNumber.get(Number(currentPage));
+    if (!page) return;
+    const ids = sentencesByPage.get(Number(currentPage)) || [];
+    if (ids.length === 0) return;
+
+    const rect = pageImage.getBoundingClientRect();
+    const xPx = event.clientX - rect.left;
+    const yPx = event.clientY - rect.top;
+    if (xPx < 0 || yPx < 0 || xPx > rect.width || yPx > rect.height) return;
+
+    const xPt = (xPx / rect.width) * Number(page.pdf_width_pt || 1);
+    const yPt = (yPx / rect.height) * Number(page.pdf_height_pt || 1);
+
+    const containing = [];
+    for (const id of ids) {
+      const s = manifest.sentences[id];
+      if (!Array.isArray(s?.bbox) || s.bbox.length !== 4) continue;
+      const [x0, y0, x1, y1] = s.bbox.map((n) => Number(n));
+      if (xPt >= x0 && xPt <= x1 && yPt >= y0 && yPt <= y1) {
+        containing.push(id);
+      }
+    }
+
+    let targetId = null;
+    if (containing.length > 0) {
+      targetId = containing.sort((a, b) => a - b)[0];
+    } else {
+      // Fallback: nearest bbox center on the current page.
+      let bestDist = Infinity;
+      for (const id of ids) {
+        const s = manifest.sentences[id];
+        if (!Array.isArray(s?.bbox) || s.bbox.length !== 4) continue;
+        const [x0, y0, x1, y1] = s.bbox.map((n) => Number(n));
+        const cx = (x0 + x1) / 2;
+        const cy = (y0 + y1) / 2;
+        const dx = cx - xPt;
+        const dy = cy - yPt;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestDist) {
+          bestDist = d2;
+          targetId = id;
+        }
+      }
+    }
+
+    if (targetId == null) return;
+    const target = manifest.sentences[targetId];
+    if (typeof target.start_sec === "number") {
+      audio.currentTime = target.start_sec;
+      if (audio.paused) {
+        void audio.play().catch(() => {});
+      }
+    }
   }
 
   async function loadManifest() {
