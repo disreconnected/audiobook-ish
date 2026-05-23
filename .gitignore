@@ -39,3 +39,9 @@ Thumbs.db
 .env
 .env.local
 *.key
+
+# Local agent / IDE skill caches (not project code)
+.claude/
+.cursor/
+mcps/
+terminals/
