@@ -11,7 +11,7 @@ Turn any PDF into a **page-synced audiobook** you can listen to *and* read along
 
 ## Status
 
-Core pipeline + synced player are implemented through M7. See [`PLAN.md`](./PLAN.md) for milestone details and [`legacy/`](./legacy) for the first chunk-level prototype.
+Core pipeline, synced player, and distribution packaging are implemented through M8. See [`PLAN.md`](./PLAN.md) for milestone details and [`legacy/`](./legacy) for the first chunk-level prototype.
 
 ## Quick start
 
@@ -36,6 +36,22 @@ examples/book/
 ```
 
 Open `player.html` in any browser. No server, no install, no telemetry.
+
+### Package for phone / sharing
+
+Once a build folder exists, repack it into a single distributable file:
+
+```bash
+# Single-file audiobook with chapter markers (Apple Books, VLC, Smart AudioBook Player, ...)
+audiobook-ish package-m4b examples/book --to dist/book.m4b
+# Defaults to AAC @ 64k; bump with --bitrate 96k for music-heavy material.
+
+# Self-contained synced-player bundle (drop on any laptop, unzip, open player.html)
+audiobook-ish package-zip examples/book --to dist/book.zip
+# Add --no-pages to skip the rendered PDF images and ship audio-only.
+```
+
+`.m4b` is the simplest "open it on my phone" path: AirDrop / Files app / Google Drive → it pops up in Apple Books or any audiobook app with chapter navigation.
 
 ## Why "but not really"?
 

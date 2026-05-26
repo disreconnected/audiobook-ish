@@ -87,7 +87,9 @@ class TestManifest:
         assert payload["source_pdf"] == "book.pdf"
         assert payload["sentences"][0]["bbox"] == [0.0, 0.0, 10.0, 10.0]
         assert payload["duration_sec"] == pytest.approx(2.8)
-        assert payload["chapters"][0]["title"] == "Chapter I"
+        assert payload["chapters"] == [
+            {"title": "Chapter I", "sentence_id": 0, "page": 1, "start_sec": 0.0}
+        ]
 
     def test_write_manifest_js_sets_window_global(self, tmp_path: Path) -> None:
         m = build_manifest(

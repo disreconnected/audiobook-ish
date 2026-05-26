@@ -24,6 +24,11 @@ legacy/*.wav
 legacy/*.mp3
 legacy/*.log
 
+# Local build + distribution outputs (regenerable)
+builds/
+scripts/_*.py
+scripts/_*.txt
+
 # Model cache
 .cache/
 models/

@@ -172,7 +172,17 @@ The player computes a px-per-pt scale from `pages[i].width_px / pdf_width_pt` to
 - ✅ Bookmarks added in player (localStorage persisted per source PDF).
 - ✅ Variable-speed playback controls retained and expanded (`select` + keyboard `,` / `.` nudges).
 - ✅ Light/dark theme toggle added (localStorage persisted per source PDF).
+- ✅ Chapter detector hardened: case-sensitive keyword match (no false positives from prose), Roman-numeral case preserved, and PART/BOOK context disambiguates same-numbered chapters across parts.
 - ❌ Word-level karaoke highlight still out of scope for v1 (requires forced alignment).
+
+### M8 — Distribution packaging *(done)*
+
+**Goal:** Make a finished build trivial to sideload onto a phone or share with a friend, without requiring a Python install on the consumer side.
+
+- ✅ `package-m4b OUTPUT_DIR --to BOOK.m4b` re-encodes `audiobook.mp3` to AAC and embeds chapter markers from `manifest.chapters` via an ffmpeg ffmetadata file (`-map_chapters 1 -movflags +faststart`). Apple Books, VLC, and Smart AudioBook Player pick up the chapters natively.
+- ✅ `package-zip OUTPUT_DIR --to BOOK.zip` archives the synced player (`player.html/.css/.js`, `manifest.json/.js`, `audiobook.mp3`, `pages/`, `assets/`) into a self-contained folder. `sentences/` and `sentences.json` are excluded — they exist only for resumable synthesis.
+- ✅ Tests: 15 packaging tests cover ffmetadata content (timebase, chapter order, intro insertion, default titles), CLI flag wiring, the zip layout, the page-skip toggle, and error paths.
+- **Acceptance validated:** packaged the full Crime and Punishment build → `crime-and-punishment.m4b` (757 MB, 41 chapters incl. intro + epilogue) and `crime-and-punishment-web.zip` (1.5 GB, 773 entries, all 767 page PNGs).
 
 ## Open questions
 

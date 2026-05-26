@@ -13,6 +13,7 @@ from audiobook_ish.chapters import detect_chapters
 from audiobook_ish.combine import combine
 from audiobook_ish.extract import extract_sentences
 from audiobook_ish.manifest import build_manifest, write_manifest, write_manifest_js
+from audiobook_ish.package import DEFAULT_M4B_BITRATE, package_m4b, package_zip
 from audiobook_ish.player_bundle import bundle_player
 from audiobook_ish.render import render_pages
 from audiobook_ish.synthesize import DEFAULT_SAMPLE_RATE, synthesize
@@ -145,6 +146,22 @@ def _cmd_combine(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_package_m4b(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output_dir)
+    dest = Path(args.to)
+    package_m4b(output_dir, dest, bitrate=args.bitrate, ffmpeg_path=args.ffmpeg)
+    print(f"Wrote {dest.resolve()}")
+    return 0
+
+
+def _cmd_package_zip(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output_dir)
+    dest = Path(args.to)
+    package_zip(output_dir, dest, include_pages=not args.no_pages)
+    print(f"Wrote {dest.resolve()}")
+    return 0
+
+
 def _cmd_build(args: argparse.Namespace) -> int:
     pdf = Path(args.pdf)
     out = Path(args.out)
@@ -255,6 +272,23 @@ def main(argv: list[str] | None = None) -> int:
     bundle = sub.add_parser("bundle-player", help="Copy static player assets into an output folder")
     bundle.add_argument("out")
 
+    pkg_m4b = sub.add_parser(
+        "package-m4b",
+        help="Repack a finished output folder into a single .m4b audiobook with chapter markers",
+    )
+    pkg_m4b.add_argument("output_dir", help="Path to a finished audiobook-ish output folder")
+    pkg_m4b.add_argument("--to", required=True, help="Destination .m4b path")
+    pkg_m4b.add_argument("--bitrate", default=DEFAULT_M4B_BITRATE, help="AAC bitrate, e.g. 64k, 96k")
+    pkg_m4b.add_argument("--ffmpeg", default=None, help="Explicit ffmpeg binary path")
+
+    pkg_zip = sub.add_parser(
+        "package-zip",
+        help="Bundle the synced player + audio + pages into a single .zip for sharing",
+    )
+    pkg_zip.add_argument("output_dir", help="Path to a finished audiobook-ish output folder")
+    pkg_zip.add_argument("--to", required=True, help="Destination .zip path")
+    pkg_zip.add_argument("--no-pages", action="store_true", help="Skip page images (audio-only player)")
+
     args = parser.parse_args(argv)
     _setup_logging(args.verbose)
 
@@ -273,6 +307,10 @@ def main(argv: list[str] | None = None) -> int:
             bundle_player(Path(args.out))
             print(f"Player bundled in: {Path(args.out).resolve()}")
             return 0
+        if args.cmd == "package-m4b":
+            return _cmd_package_m4b(args)
+        if args.cmd == "package-zip":
+            return _cmd_package_zip(args)
     except AudiobookIshError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
