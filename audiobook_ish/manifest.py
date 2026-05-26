@@ -9,7 +9,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from . import MANIFEST_SCHEMA_VERSION, Manifest, PageInfo, Sentence
+from . import ChapterInfo, MANIFEST_SCHEMA_VERSION, Manifest, PageInfo, Sentence
 
 
 def build_manifest(
@@ -19,6 +19,7 @@ def build_manifest(
     sample_rate: int,
     pages: list[PageInfo],
     sentences: list[Sentence],
+    chapters: list[ChapterInfo] | None = None,
     page_count: int | None = None,
 ) -> Manifest:
     """Assemble a Manifest from synthesis + render outputs."""
@@ -36,6 +37,7 @@ def build_manifest(
         duration_sec=float(duration),
         pages=pages,
         sentences=sentences,
+        chapters=chapters or [],
     )
 
 
@@ -61,6 +63,7 @@ def manifest_to_dict(manifest: Manifest) -> dict:
     payload = asdict(manifest)
     payload["sentences"] = [_sentence_to_dict(s) for s in manifest.sentences]
     payload["pages"] = [asdict(p) for p in manifest.pages]
+    payload["chapters"] = [_chapter_to_dict(c) for c in manifest.chapters]
     return payload
 
 
@@ -72,4 +75,13 @@ def _sentence_to_dict(s: Sentence) -> dict:
         "bbox": list(s.bbox),
         "start_sec": s.start_sec,
         "end_sec": s.end_sec,
+    }
+
+
+def _chapter_to_dict(c: ChapterInfo) -> dict:
+    return {
+        "title": c.title,
+        "sentence_id": c.sentence_id,
+        "page": c.page,
+        "start_sec": c.start_sec,
     }

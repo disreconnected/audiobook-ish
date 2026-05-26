@@ -9,7 +9,14 @@
 <body>
   <header class="topbar">
     <div class="title" id="title">audiobook-ish</div>
-    <div class="page-indicator">Page <span id="page-num">—</span> / <span id="page-total">—</span></div>
+    <div class="top-controls">
+      <label class="chapter-nav hidden" id="chapter-wrap">
+        Chapter
+        <select id="chapter-select"></select>
+      </label>
+      <div class="page-indicator">Page <span id="page-num">—</span> / <span id="page-total">—</span></div>
+      <button id="theme-toggle" class="ghost-btn" title="Toggle light/dark">Theme</button>
+    </div>
   </header>
 
   <main class="layout" id="layout">
@@ -31,6 +38,10 @@
     <button id="prev-sent" title="Previous sentence (j)">⏮</button>
     <button id="play-pause" title="Play/pause (space)">▶</button>
     <button id="next-sent" title="Next sentence (k)">⏭</button>
+    <button id="bookmark-add" title="Add bookmark">★ Bookmark</button>
+    <select id="bookmark-select" title="Jump to bookmark">
+      <option value="">Bookmarks</option>
+    </select>
     <input type="range" id="scrubber" min="0" max="0" step="0.1" value="0" />
     <span class="time"><span id="time-current">0:00</span> / <span id="time-total">0:00</span></span>
     <label class="speed">

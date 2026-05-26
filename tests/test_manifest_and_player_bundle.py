@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from audiobook_ish import AudiobookIshError, PageInfo, Sentence
+from audiobook_ish.chapters import detect_chapters
 from audiobook_ish.manifest import (
     build_manifest,
     manifest_to_dict,
@@ -65,6 +66,12 @@ class TestManifest:
         assert m.page_count == 767
 
     def test_write_manifest_json(self, tmp_path: Path) -> None:
+        chapters = detect_chapters(
+            [
+                Sentence(id=0, text="CHAPTER I", page=1, bbox=(0, 0, 10, 10), start_sec=0.0, end_sec=0.5),
+                Sentence(id=1, text="One.", page=1, bbox=(0, 0, 10, 10), start_sec=0.5, end_sec=1.2),
+            ]
+        )
         m = build_manifest(
             source_pdf="book.pdf",
             voice="af_nicole",
@@ -72,6 +79,7 @@ class TestManifest:
             sample_rate=24000,
             pages=[],
             sentences=_sample_sentences(),
+            chapters=chapters,
         )
         out = tmp_path / "manifest.json"
         write_manifest(m, out)
@@ -79,6 +87,7 @@ class TestManifest:
         assert payload["source_pdf"] == "book.pdf"
         assert payload["sentences"][0]["bbox"] == [0.0, 0.0, 10.0, 10.0]
         assert payload["duration_sec"] == pytest.approx(2.8)
+        assert payload["chapters"][0]["title"] == "Chapter I"
 
     def test_write_manifest_js_sets_window_global(self, tmp_path: Path) -> None:
         m = build_manifest(

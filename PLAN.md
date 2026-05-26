@@ -165,13 +165,14 @@ The player computes a px-per-pt scale from `pages[i].width_px / pdf_width_pt` to
 - ⚠️ Progress bars (`tqdm`) deferred; currently stage markers are printed (`[1/5] ...`).
 - **Acceptance validated:** full CLI smoke build on Crime and Punishment with `--max-sentences 8` completed successfully and produced a playable output folder with all expected artifacts.
 
-### M7 — Polish
+### M7 — Polish *(done)*
 
-- Chapter detection (heading heuristic) → chapter nav in player.
-- Bookmarks (localStorage in player).
-- Variable-speed playback in player (separate from synthesis speed).
-- Light/dark theme.
-- Optional: word-level karaoke highlight (needs forced alignment — out of scope for v1).
+- ✅ Chapter detection heuristic (`PART/BOOK/CHAPTER`) added from sentence stream and stored in manifest.
+- ✅ Chapter jump selector added to player top bar (navigates by sentence anchor/time).
+- ✅ Bookmarks added in player (localStorage persisted per source PDF).
+- ✅ Variable-speed playback controls retained and expanded (`select` + keyboard `,` / `.` nudges).
+- ✅ Light/dark theme toggle added (localStorage persisted per source PDF).
+- ❌ Word-level karaoke highlight still out of scope for v1 (requires forced alignment).
 
 ## Open questions
 

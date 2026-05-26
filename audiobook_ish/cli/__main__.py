@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 
 from audiobook_ish import AudiobookIshError, Sentence
+from audiobook_ish.chapters import detect_chapters
 from audiobook_ish.combine import combine
 from audiobook_ish.extract import extract_sentences
 from audiobook_ish.manifest import build_manifest, write_manifest, write_manifest_js
@@ -106,6 +107,7 @@ def _cmd_synthesize(args: argparse.Namespace) -> int:
             sample_rate=args.sample_rate,
             pages=[],
             sentences=sentences,
+            chapters=detect_chapters(sentences),
         )
         _write_manifest_pair(partial, out_dir)
 
@@ -168,6 +170,7 @@ def _cmd_build(args: argparse.Namespace) -> int:
             sample_rate=args.sample_rate,
             pages=[],
             sentences=sentences,
+            chapters=detect_chapters(sentences),
         )
         _write_manifest_pair(partial, out)
 
@@ -195,6 +198,7 @@ def _cmd_build(args: argparse.Namespace) -> int:
         sample_rate=args.sample_rate,
         pages=pages,
         sentences=sentences,
+        chapters=detect_chapters(sentences),
     )
     _write_manifest_pair(manifest, out)
     bundle_player(out)

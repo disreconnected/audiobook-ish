@@ -42,6 +42,16 @@ class PageInfo:
 
 
 @dataclass
+class ChapterInfo:
+    """Detected chapter anchor for quick navigation in the player."""
+
+    title: str
+    sentence_id: int
+    page: int
+    start_sec: float | None = None
+
+
+@dataclass
 class Manifest:
     """The full manifest the player consumes. See PLAN.md for schema."""
 
@@ -53,11 +63,13 @@ class Manifest:
     duration_sec: float
     pages: list[PageInfo] = field(default_factory=list)
     sentences: list[Sentence] = field(default_factory=list)
+    chapters: list[ChapterInfo] = field(default_factory=list)
     schema_version: int = MANIFEST_SCHEMA_VERSION
 
 
 __all__ = [
     "AudiobookIshError",
+    "ChapterInfo",
     "MANIFEST_SCHEMA_VERSION",
     "Manifest",
     "PageInfo",

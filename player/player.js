@@ -19,6 +19,11 @@
   const prevBtn = document.getElementById("prev-sent");
   const nextBtn = document.getElementById("next-sent");
   const speed = document.getElementById("speed");
+  const chapterWrap = document.getElementById("chapter-wrap");
+  const chapterSelect = document.getElementById("chapter-select");
+  const bookmarkAdd = document.getElementById("bookmark-add");
+  const bookmarkSelect = document.getElementById("bookmark-select");
+  const themeToggle = document.getElementById("theme-toggle");
 
   let manifest = null;
   let currentIdx = -1;
@@ -26,6 +31,9 @@
   const timeline = [];
   const sentencesByPage = new Map();
   const pageByNumber = new Map();
+  let chapters = [];
+  let bookmarks = [];
+  let storagePrefix = "audiobook-ish:unknown";
 
   try {
     manifest = await loadManifest();
@@ -45,6 +53,7 @@
   }
 
   titleEl.textContent = manifest.source_pdf || "audiobook-ish";
+  storagePrefix = `audiobook-ish:${manifest.source_pdf || "unknown"}`;
   const inferredTotalPages = manifest.page_count
     || Math.max(...manifest.sentences.map((s) => Number(s.page) || 0), 0)
     || "—";
@@ -53,6 +62,16 @@
     for (const page of manifest.pages) {
       pageByNumber.set(Number(page.number), page);
     }
+  }
+  if (Array.isArray(manifest.chapters)) {
+    chapters = manifest.chapters
+      .map((c) => ({
+        title: String(c.title || ""),
+        sentence_id: Number(c.sentence_id),
+        page: Number(c.page),
+        start_sec: Number(c.start_sec),
+      }))
+      .filter((c) => Number.isFinite(c.sentence_id) && c.sentence_id >= 0);
   }
 
   // Build sentence list + lookup timeline.
@@ -81,6 +100,10 @@
   }
   timeline.sort((a, b) => a.start - b.start);
   pageView.addEventListener("click", onPageClick);
+  bookmarks = loadBookmarks();
+  applySavedTheme();
+  initChapterNav();
+  renderBookmarks();
 
   audio.addEventListener("loadedmetadata", () => {
     scrubber.max = String(audio.duration || 0);
@@ -105,6 +128,10 @@
   prevBtn.addEventListener("click", () => jumpRelative(-1));
   nextBtn.addEventListener("click", () => jumpRelative(+1));
   speed.addEventListener("change", () => (audio.playbackRate = Number(speed.value)));
+  chapterSelect.addEventListener("change", onChapterSelect);
+  bookmarkAdd.addEventListener("click", addBookmarkAtCurrent);
+  bookmarkSelect.addEventListener("change", onBookmarkSelect);
+  themeToggle.addEventListener("click", toggleTheme);
 
   document.addEventListener("keydown", (e) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
@@ -151,6 +178,7 @@
     const s = manifest.sentences[idx];
     pageNum.textContent = String(s.page);
     syncPageVisuals(s);
+    syncActiveChapter(idx);
   }
 
   function jumpRelative(delta) {
@@ -306,6 +334,165 @@
       if (audio.paused) {
         void audio.play().catch(() => {});
       }
+    }
+  }
+
+  function initChapterNav() {
+    if (!chapters.length) {
+      chapterWrap.classList.add("hidden");
+      return;
+    }
+    chapters.sort((a, b) => a.sentence_id - b.sentence_id);
+    chapterWrap.classList.remove("hidden");
+    chapterSelect.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Jump to chapter";
+    chapterSelect.appendChild(placeholder);
+    for (const ch of chapters) {
+      const option = document.createElement("option");
+      option.value = String(ch.sentence_id);
+      option.textContent = ch.title;
+      chapterSelect.appendChild(option);
+    }
+  }
+
+  function onChapterSelect() {
+    const id = Number(chapterSelect.value);
+    if (!Number.isFinite(id)) return;
+    const sentence = manifest.sentences[id];
+    if (!sentence || typeof sentence.start_sec !== "number") return;
+    audio.currentTime = sentence.start_sec;
+    if (audio.paused) void audio.play().catch(() => {});
+  }
+
+  function syncActiveChapter(activeSentenceId) {
+    if (!chapters.length) return;
+    let chosen = "";
+    for (const ch of chapters) {
+      if (ch.sentence_id <= activeSentenceId) {
+        chosen = String(ch.sentence_id);
+      } else {
+        break;
+      }
+    }
+    chapterSelect.value = chosen;
+  }
+
+  function addBookmarkAtCurrent() {
+    if (currentIdx < 0) {
+      const recovered = indexForTime(Number(audio.currentTime) || 0);
+      if (recovered >= 0) {
+        setActive(recovered);
+      } else if (manifest.sentences.length > 0) {
+        setActive(0);
+      }
+    }
+    if (currentIdx < 0) return;
+    const sentence = manifest.sentences[currentIdx];
+    const now = Number(audio.currentTime || sentence.start_sec || 0);
+    const entry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      sentence_id: sentence.id,
+      page: sentence.page,
+      time: now,
+      label: bookmarkLabel(sentence, now),
+    };
+    bookmarks.push(entry);
+    bookmarks.sort((a, b) => a.time - b.time);
+    saveBookmarks();
+    renderBookmarks();
+    bookmarkSelect.value = entry.id;
+  }
+
+  function onBookmarkSelect() {
+    const id = bookmarkSelect.value;
+    if (!id) return;
+    const bm = bookmarks.find((b) => b.id === id);
+    if (!bm) return;
+    audio.currentTime = Number(bm.time) || 0;
+    if (audio.paused) void audio.play().catch(() => {});
+  }
+
+  function renderBookmarks() {
+    const prev = bookmarkSelect.value;
+    bookmarkSelect.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Bookmarks";
+    bookmarkSelect.appendChild(placeholder);
+    for (const bm of bookmarks) {
+      const option = document.createElement("option");
+      option.value = bm.id;
+      option.textContent = bm.label;
+      bookmarkSelect.appendChild(option);
+    }
+    if (bookmarks.some((b) => b.id === prev)) {
+      bookmarkSelect.value = prev;
+    }
+  }
+
+  function bookmarkLabel(sentence, timeSec) {
+    const text = (sentence.text || "").replace(/\s+/g, " ").trim();
+    const snippet = text.length > 36 ? `${text.slice(0, 33)}...` : text;
+    return `${fmt(timeSec)} | p${sentence.page} | ${snippet}`;
+  }
+
+  function bookmarksStorageKey() {
+    return `${storagePrefix}:bookmarks`;
+  }
+
+  function themeStorageKey() {
+    return `${storagePrefix}:theme`;
+  }
+
+  function saveBookmarks() {
+    try {
+      window.localStorage.setItem(bookmarksStorageKey(), JSON.stringify(bookmarks));
+    } catch (_) {
+      // Ignore storage failures (private mode, quota, etc.)
+    }
+  }
+
+  function loadBookmarks() {
+    try {
+      const raw = window.localStorage.getItem(bookmarksStorageKey());
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((b) => b && typeof b.id === "string");
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function toggleTheme() {
+    const current = document.body.dataset.theme === "light" ? "light" : "dark";
+    const next = current === "light" ? "dark" : "light";
+    setTheme(next);
+  }
+
+  function applySavedTheme() {
+    let saved = null;
+    try {
+      saved = window.localStorage.getItem(themeStorageKey());
+    } catch (_) {
+      saved = null;
+    }
+    if (saved !== "light" && saved !== "dark") {
+      saved = "dark";
+    }
+    setTheme(saved, false);
+  }
+
+  function setTheme(theme, persist = true) {
+    document.body.dataset.theme = theme;
+    themeToggle.textContent = theme === "light" ? "Dark" : "Light";
+    if (!persist) return;
+    try {
+      window.localStorage.setItem(themeStorageKey(), theme);
+    } catch (_) {
+      // ignore
     }
   }
 

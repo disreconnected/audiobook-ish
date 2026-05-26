@@ -11,9 +11,9 @@ Turn any PDF into a **page-synced audiobook** you can listen to *and* read along
 
 ## Status
 
-> Pre-alpha. The current `main` branch holds the **plan + scaffolding**. See [`PLAN.md`](./PLAN.md) for milestones and [`legacy/`](./legacy) for the first chunk-level prototype.
+Core pipeline + synced player are implemented through M7. See [`PLAN.md`](./PLAN.md) for milestone details and [`legacy/`](./legacy) for the first chunk-level prototype.
 
-## Quick start (target UX, not yet implemented)
+## Quick start
 
 ```bash
 pip install -e .
@@ -26,10 +26,13 @@ That produces:
 ```
 examples/book/
 ├── audiobook.mp3        # full narration, ~128kbps
-├── manifest.json        # sentence timing + page + bbox
+├── manifest.json        # sentence timing + page + bbox + chapters
+├── manifest.js          # file:// bootstrap fallback for browser playback
 ├── pages/page_001.png   # rendered PDF pages
 ├── sentences/           # per-sentence wavs (kept for resume)
-└── player.html          # standalone offline player
+├── player.html          # standalone offline player
+├── player.css
+└── player.js
 ```
 
 Open `player.html` in any browser. No server, no install, no telemetry.
